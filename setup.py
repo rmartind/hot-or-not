@@ -32,7 +32,7 @@ setup(
     ],
     keywords='discord hotornot bot',
     packages=find_packages(exclude=['contrib', 'docs', 'tests']),
-    python_requires='!>=2.7, >=3.0, !=3.6, !=3.7',
+    python_requires='!=2.7, >=3.0, !=3.6, !=3.7',
     install_requires=[
       'aiohttp==1.0.5',
       'asyncio==3.4.3',
