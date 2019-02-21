@@ -13,24 +13,32 @@ client = discord.Client()
 rating_cache = OrderedDict()
 
 
-def create_embed(link, rating, count, msg):
-    embed = discord.Embed(
-        title='*How to rate*', description='`.rate 1-10 to rate this image`', color=0xff3232, timestamp=msg.timestamp)
-    embed.set_author(name='Hot or Not', icon_url=client.user.avatar_url)
+def create_embed():
+    return discord.Embed(color=0xff3232). \
+        set_author(name='Hot or Not', icon_url=client.user.avatar_url)
+
+
+def rate_embed(link, rating, count):
+    embed = create_embed()
+    embed.title = '*How to rate*'
+    embed.description = '`.rate 1-10 to rate this image`'
     embed.add_field(name='Average rating:', value=rating, inline=True)
     embed.add_field(name='Votes:', value=count, inline=True)
     embed.set_image(url=link)
     return embed
 
+
 def help_embed(msg):
-    embed = discord.Embed(
-        title='*Instructions*', description='`displays photos of boys and girls to rate.`', color=0xff3232, timestamp=msg.timestamp)
-    embed.set_author(name='Hot or Not', icon_url=client.user.avatar_url)
+    embed = create_embed()
+    embed.title = '*Instructions*'
+    embed.description = '`displays photos of boys and girls to rate.`'
     embed.add_field(name='Show girl:', value='`.girl`', inline=True)
     embed.add_field(name='Show boy:', value='`.boy`', inline=True)
-    embed.add_field(name='rate:', value='`.rate value - value must be 1-10`', inline=True)
+    embed.add_field(
+        name='rate:', value='`.rate value - value must be 1-10`', inline=True)
     embed.set_thumbnail(url=msg.channel.server.icon_url)
-    return embed    
+    return embed
+
 
 def add_rating(new_rating, requester):
     if new_rating <= 10 and new_rating > 0:
@@ -43,6 +51,28 @@ def add_rating(new_rating, requester):
         raise ValueError('Rating must be between 0-10.')
 
 
+def prepare_image(gender, msg):
+    if gender == 'girl':
+        image = mongo.random_girl()
+    else:
+        image = mongo.random_boy()
+    hash = None
+    url = None
+    rating = None
+    count = None
+    for e in image:
+        url = e['link']
+        rating = e['rating']
+        hash = e['_id']
+        count = e['count']
+
+    if len(rating_cache) < 4:
+        rating_cache[msg.author.id] = (hash, 'boy')
+    else:
+        rating_cache.popitem(last=False)
+    return rate_embed(url, rating, count)
+
+
 @client.event
 async def on_ready():
     print(client.user.name)
@@ -53,46 +83,15 @@ async def on_ready():
 async def on_message(msg):
     if msg.channel.id == config['DISCORD_CLIENT']['BOT_CHANNEL']:
         if msg.content.startswith('.girl'):
-            image = mongo.random_girl()
-            hash = None
-            url = None
-            rating = None
-            count = None
-            for e in image:
-                url = e['link']
-                rating = e['rating']
-                hash = e['_id']
-                count = e['count']
+            await client.send_message(msg.channel, embed=prepare_image('girl', msg))
 
-            if len(rating_cache) < 4:
-                rating_cache[msg.author.id] = (hash, 'girl')
-            else:
-                rating_cache.popitem(last=False)
-
-            embed = create_embed(url, rating, count, msg)
-            await client.send_message(msg.channel, embed=embed)
         elif msg.content.startswith('.boy'):
-            image = mongo.random_boy()
-            hash = None
-            url = None
-            rating = None
-            count = None
-            for e in image:
-                url = e['link']
-                rating = e['rating']
-                hash = e['_id']
-                count = e['count']
+            await client.send_message(msg.channel,  embed=prepare_image('boy', msg))
 
-            if len(rating_cache) < 4:
-                rating_cache[msg.author.id] = (hash, 'boy')
-            else:
-                rating_cache.popitem(last=False)
-            embed = create_embed(url, rating, count, msg)
-            await client.send_message(msg.channel, embed=embed)
-    
         elif msg.content.startswith('.rate'):
             try:
-                add_rating(int(msg.content[len('.rate'):].strip()), msg.author.id)
+                add_rating(
+                    int(msg.content[len('.rate'):].strip()), msg.author.id)
                 await client.send_message(msg.channel, '`Rating added.`')
             except KeyError:
                 await client.send_message(msg.channel, '`Nothing to rate.`')
@@ -101,15 +100,18 @@ async def on_message(msg):
 
         elif msg.content.startswith('.upload album girl'):
             if msg.author.id == config['DISCORD_CLIENT']['ADMIN_ID']:
-                mongo.upload_album(msg.content[len('.upload album girl'):].strip())
+                mongo.upload_album(
+                    msg.content[len('.upload album girl'):].strip())
             else:
                 await client.send_message(msg.channel, '`You must be an administator to perform this command.`')
 
         elif msg.content.startswith('.upload album boy'):
             if msg.author.id == config['DISCORD_CLIENT']['ADMIN_ID']:
-                mongo.upload_album(msg.content[len('.upload album boy'):].strip(), girl=False)
+                mongo.upload_album(
+                    msg.content[len('.upload album boy'):].strip(), girl=False)
             else:
                 await client.send_message(msg.channel, '`You must be an administator to perform this command.`')
+
         elif msg.content.startswith('.help'):
             await client.send_message(msg.channel, embed=help_embed(msg))
 

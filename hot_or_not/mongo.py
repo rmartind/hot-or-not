@@ -62,4 +62,4 @@ class Mongo(object):
 
     @staticmethod
     def average(old_rating, new_rating, count):
-        return float(round(Decimal((old_rating * count + new_rating) / (count + 1)),1))
+        return float(round(Decimal((old_rating * count + new_rating) / (count + 1)), 1))
