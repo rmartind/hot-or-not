@@ -4,7 +4,9 @@ import configparser
 from collections import OrderedDict
 import pymongo
 from mongo import Mongo
+import uvloop
 
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 config = configparser.ConfigParser()
 config.read('config.ini')

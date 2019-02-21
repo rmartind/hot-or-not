@@ -38,7 +38,9 @@ setup(
       'asyncio==3.4.3',
       'uvloop==0.11.0',
       'discord.py==0.16.12',
-      'websockets==3.4'
+      'websockets==3.4',
+      'requests==2.21.0',
+      'pymongo==3.6.1'
     ],
     project_urls={
         'Bug Reports': 'https://github.com/rmartind/hot-or-not/issues',
