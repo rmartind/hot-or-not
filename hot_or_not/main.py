@@ -42,6 +42,18 @@ def help_embed(msg):
     return embed
 
 
+def top_embed(tops):
+    embed = create_embed()
+    embed.title = '*TOP 5 HOTTEST*'
+    count = 5
+    for top in reversed(tops):
+        embed.add_field(name='{}.'.format(count), value='`Rating: {} | Votes: {}` \
+            [Imgur link]({})'.format(top['rating'], top['count'],top['link']), inline=False)
+        count -= 1
+    embed.set_image(url=tops[0]['link'])
+    return embed
+
+
 def add_rating(new_rating, requester):
     if new_rating <= 10 and new_rating > 0:
         if rating_cache[requester][1] == 'girl':
@@ -50,7 +62,7 @@ def add_rating(new_rating, requester):
             mongo.update_boy(rating_cache[requester][0], new_rating)
         del rating_cache[requester]
     else:
-        raise ValueError('Rating must be between 0-10.')
+        raise ValueError('Rating must be between 1-10.')
 
 
 def prepare_image(gender, msg):
@@ -69,7 +81,10 @@ def prepare_image(gender, msg):
         count = e['count']
 
     if len(rating_cache) < 4:
-        rating_cache[msg.author.id] = (hash, 'boy')
+        if gender == 'girl':
+            rating_cache[msg.author.id] = (hash, 'girl')
+        else:
+            rating_cache[msg.author.id] = (hash, 'boy')
     else:
         rating_cache.popitem(last=False)
     return rate_embed(url, rating, count)
@@ -113,6 +128,16 @@ async def on_message(msg):
                     msg.content[len('.upload album boy'):].strip(), girl=False)
             else:
                 await client.send_message(msg.channel, '`You must be an administator to perform this command.`')
+
+        elif msg.content.startswith('.top girls'):
+            tops = mongo.top_girls()
+            embed = top_embed(tops)
+            await client.send_message(msg.channel, embed=embed)
+
+        elif msg.content.startswith('.top boys'):
+            tops = mongo.top_boys()
+            embed = top_embed(tops)
+            await client.send_message(msg.channel, embed=embed)
 
         elif msg.content.startswith('.help'):
             await client.send_message(msg.channel, embed=help_embed(msg))

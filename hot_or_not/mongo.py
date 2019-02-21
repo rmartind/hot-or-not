@@ -60,6 +60,12 @@ class Mongo(object):
                             '$set': {'rating': total_average}},
             return_document=pymongo.ReturnDocument.AFTER)
 
+    def top_girls(self):
+        return [girl for girl in self._db.girls.find().sort('rating', pymongo.DESCENDING).limit(5)]
+
+    def top_boys(self):
+        return [boy for boy in self._db.boys.find().sort('rating', pymongo.DESCENDING).limit(5)]
+
     @staticmethod
     def average(old_rating, new_rating, count):
         return float(round(Decimal((old_rating * count + new_rating) / (count + 1)), 1))
