@@ -1,57 +1,23 @@
 import discord
 import asyncio
+import pymongo
+import uvloop
 import configparser
 from collections import OrderedDict
-import pymongo
 from mongo import Mongo
-import uvloop
+from embeds import Embeds
+
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 config = configparser.ConfigParser()
 config.read('config.ini')
+
 mongo = Mongo(config['IMGUR_CLIENT']['CLIENT_ID'])
 client = discord.Client()
+embeds = Embeds(client)
+
 rating_cache = OrderedDict()
-
-
-def create_embed():
-    return discord.Embed(color=0xff3232). \
-        set_author(name='Hot or Not', icon_url=client.user.avatar_url)
-
-
-def rate_embed(link, rating, count):
-    embed = create_embed()
-    embed.title = '*How to rate*'
-    embed.description = '`.rate 1-10 to rate this image`'
-    embed.add_field(name='Average rating:', value=rating, inline=True)
-    embed.add_field(name='Votes:', value=count, inline=True)
-    embed.set_image(url=link)
-    return embed
-
-
-def help_embed(msg):
-    embed = create_embed()
-    embed.title = '*Instructions*'
-    embed.description = '`displays photos of boys and girls to rate.`'
-    embed.add_field(name='Show girl:', value='`.girl`', inline=True)
-    embed.add_field(name='Show boy:', value='`.boy`', inline=True)
-    embed.add_field(
-        name='rate:', value='`.rate value - value must be 1-10`', inline=True)
-    embed.set_thumbnail(url=msg.channel.server.icon_url)
-    return embed
-
-
-def top_embed(tops):
-    embed = create_embed()
-    embed.title = '*TOP 5 HOTTEST*'
-    count = 5
-    for top in reversed(tops):
-        embed.add_field(name='{}.'.format(count), value='`Rating: {} | Votes: {}` \
-            [Imgur link]({})'.format(top['rating'], top['count'],top['link']), inline=False)
-        count -= 1
-    embed.set_image(url=tops[0]['link'])
-    return embed
 
 
 def add_rating(new_rating, requester):
@@ -65,29 +31,37 @@ def add_rating(new_rating, requester):
         raise ValueError('Rating must be between 1-10.')
 
 
+def add_to_cache(image_hash, gender, id):
+    if len(rating_cache) < 4:
+        if gender == 'girl':
+            rating_cache[id] = (image_hash, 'girl')
+        else:
+            rating_cache[id] = (image_hash, 'boy')
+    else:
+        rating_cache.popitem(last=False)
+        if gender == 'girl':
+            rating_cache[id] = (image_hash, 'girl')
+        else:
+            rating_cache[id] = (image_hash, 'boy')
+
+
 def prepare_image(gender, msg):
     if gender == 'girl':
         image = mongo.random_girl()
     else:
         image = mongo.random_boy()
-    hash = None
+    image_hash = None
     url = None
     rating = None
     count = None
     for e in image:
         url = e['link']
         rating = e['rating']
-        hash = e['_id']
+        image_hash = e['_id']
         count = e['count']
 
-    if len(rating_cache) < 4:
-        if gender == 'girl':
-            rating_cache[msg.author.id] = (hash, 'girl')
-        else:
-            rating_cache[msg.author.id] = (hash, 'boy')
-    else:
-        rating_cache.popitem(last=False)
-    return rate_embed(url, rating, count)
+    add_to_cache(image_hash, gender, msg.author.id)
+    return embeds.rate_embed(url, rating, count)
 
 
 @client.event
@@ -113,7 +87,7 @@ async def on_message(msg):
             except KeyError:
                 await client.send_message(msg.channel, '`Nothing to rate.`')
             except ValueError:
-                await client.send_message(msg.channel, '`Rating must be between 0-10.`')
+                await client.send_message(msg.channel, '`Rating must be between 1-10.`')
 
         elif msg.content.startswith('.upload album girl'):
             if msg.author.id == config['DISCORD_CLIENT']['ADMIN_ID']:
@@ -131,16 +105,16 @@ async def on_message(msg):
 
         elif msg.content.startswith('.top girls'):
             tops = mongo.top_girls()
-            embed = top_embed(tops)
+            embed = embeds.top_embed(tops)
             await client.send_message(msg.channel, embed=embed)
 
         elif msg.content.startswith('.top boys'):
             tops = mongo.top_boys()
-            embed = top_embed(tops)
+            embed = embeds.top_embed(tops)
             await client.send_message(msg.channel, embed=embed)
 
         elif msg.content.startswith('.help'):
-            await client.send_message(msg.channel, embed=help_embed(msg))
+            await client.send_message(msg.channel, embed=embeds.help_embed(msg))
 
 
 client.run(config['DISCORD_CLIENT']['BOT_TOKEN'])
