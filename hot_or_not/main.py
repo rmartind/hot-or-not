@@ -32,17 +32,12 @@ def add_rating(new_rating, requester):
 
 
 def add_to_cache(image_hash, gender, id):
-    if len(rating_cache) < 4:
-        if gender == 'girl':
-            rating_cache[id] = (image_hash, 'girl')
-        else:
-            rating_cache[id] = (image_hash, 'boy')
-    else:
+    if len(rating_cache) > 4:
         rating_cache.popitem(last=False)
-        if gender == 'girl':
-            rating_cache[id] = (image_hash, 'girl')
-        else:
-            rating_cache[id] = (image_hash, 'boy')
+    if gender == 'girl':
+        rating_cache[id] = (image_hash, 'girl')
+    else:
+        rating_cache[id] = (image_hash, 'boy')
 
 
 def prepare_image(gender, msg):
@@ -50,18 +45,8 @@ def prepare_image(gender, msg):
         image = mongo.random_girl()
     else:
         image = mongo.random_boy()
-    image_hash = None
-    url = None
-    rating = None
-    count = None
-    for e in image:
-        url = e['link']
-        rating = e['rating']
-        image_hash = e['_id']
-        count = e['count']
-
-    add_to_cache(image_hash, gender, msg.author.id)
-    return embeds.rate_embed(url, rating, count)
+    add_to_cache(image['_id'], gender, msg.author.id)
+    return embeds.rate_embed(image['link'], image['rating'], image['count'])
 
 
 @client.event
@@ -104,14 +89,10 @@ async def on_message(msg):
                 await client.send_message(msg.channel, '`You must be an administator to perform this command.`')
 
         elif msg.content.startswith('.top girls'):
-            tops = mongo.top_girls()
-            embed = embeds.top_embed(tops)
-            await client.send_message(msg.channel, embed=embed)
+            await client.send_message(msg.channel, embed=embeds.top_embed(mongo.top_girls()))
 
         elif msg.content.startswith('.top boys'):
-            tops = mongo.top_boys()
-            embed = embeds.top_embed(tops)
-            await client.send_message(msg.channel, embed=embed)
+            await client.send_message(msg.channel, embed=embeds.top_embed(mongo.top_boys()))
 
         elif msg.content.startswith('.help'):
             await client.send_message(msg.channel, embed=embeds.help_embed(msg))
